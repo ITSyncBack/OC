@@ -1,8 +1,16 @@
-﻿using Common;
+﻿using Azure;
+using Common;
 using MediatR;
+using Microsoft.SqlServer.Server;
+using Microsoft.VisualBasic;
 using Pd_Ws_Unoee;
+using System.Diagnostics.Contracts;
+using System.Drawing;
+using System.Numerics;
+using System.Reflection;
 using System.Xml.Linq;
 using Ts_Ws_Unoee;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Commands
 {
@@ -56,7 +64,7 @@ namespace Commands
             cf.plainTextFormat("2", "Num", 7) + // Numero de registro | Numérico | 7 | Si | F_NUMERO-REG | 1 | 7 |  | Numero consecutivo
             cf.plainTextFormat("420", "Num", 4) + // Tipo de registro | Numérico | 4 | Si | F_TIPO-REG | 8 | 11 |  | Valor fijo = 420
             cf.plainTextFormat("0", "Num", 2) + // Subtipo de registro | Numérico | 2 | Si | F_SUBTIPO-REG | 12 | 13 |  | Valor fijo = 00
-            cf.plainTextFormat("3", "Num", 2) + // Version del tipo de registro | Numérico | 2 | Si | F_VERSION-REG | 14 | 15 |  | Version = 03
+            cf.plainTextFormat("7", "Num", 2) + // Version del tipo de registro | Numérico | 2 | Si | F_VERSION-REG | 14 | 15 |  | Version = 07
             cf.plainTextFormat("1", "Num", 3) + // Compañía | Numérico | 3 | Si | F_CIA | 16 | 18 |  | Valida en maestro, código de la compañía a la cual pertenece la informacion del registro
             cf.plainTextFormat("1", "Num", 1) + // Indicador para liquidar impuestos | Numérico | 1 | Si | F_LIQUIDA_IMPUESTO | 19 | 19 |  | 0=No liquida impuestos, respeta los que estan en el plano registro tipo 423, 1=Liquida impuestos con los parámetros del sistema (item y proveedor) en el momento de la importación. No tiene en cuenta los registros tipo 423 de este movimiento.
             cf.plainTextFormat("1", "Num", 1) + // Indica si el número consecutivo de docto es manual o automático | Numérico | 1 | Si | F_CONSEC_AUTO_REG | 20 | 20 |  | 0=Manual, significa que respecta el consecutivo asignado en el plano, 1=Automatico, significa que el consecutivo es recalculado con base en la tabla de consecutivos de docto.
@@ -97,6 +105,10 @@ namespace Commands
             cf.plainTextFormat(" ", "Alfa", 50) + // E-Mail | Alfanumérico | 50 | No | f419_email | 666 | 715 |  | dirección de correo electrónico
             cf.plainTextFormat(request.doctoReferencia, "Alfa", 15) + // Documento referencia | Alfanumérico | 15 | No | f420_num_docto_referencia | 716 | 730 |  | Documento referencia
             cf.plainTextFormat(" ", "Alfa", 15) + // Mandato | Alfanumérico | 15 | No | f420_id_mandato | 731 | 745 |  | Valida en maestro, código del mandato, solo para ordenes de compra.
+			cf.plainTextFormat("0", "Num", 1) + // f420_ind_consignacion | Indicador de consignación Numérico | 0 = No, 1 = Si.El valor de este indicador se lleva a la entrada desde OC. | Si | 746 | 1 | 746
+            cf.plainTextFormat(" ", "Alfa", 15) + // f420_id_tercero_solicit | Tercero solicitante | Alfanumérico | Valida en maestro.Es el código de tercero con que se identifica al solicitante.No  747 15  761
+            cf.plainTextFormat(" ", "Alfa", 1) + // f420_ind_importacion | Indicador de importación | Alfanumérico |    0 = No, 1 = Si, Indica que la gestión de compra se hará por el modulo de importaciones.Si  762 1   762
+            cf.plainTextFormat(" ", "Alfa", 15) + // f420_id_proyecto Proyecto | Alfanumérico | Valida en maestro, código de proyecto del documento No  763 15  777
             "</Linea>";
 
             int lineNumber = 2; 
@@ -110,7 +122,7 @@ namespace Commands
                 cf.plainTextFormat(lineNumber.ToString(), "Num", 7) + // Numero de registro | Numérico | 7 | Si | F_NUMERO-REG | 1 | 7 | Numero consecutivo
                 cf.plainTextFormat("421", "Num", 4) + // Tipo de registro | Numérico | 4 | Si | F_TIPO-REG | 8 | 11 | Valor fijo = 421
                 cf.plainTextFormat("", "Num", 2) + // Subtipo de registro | Numérico | 2 | Si | F_SUBTIPO-REG | 12 | 13 | Valor fijo = 00
-                cf.plainTextFormat("5", "Num", 2) + // Version del tipo de registro | Numérico | 2 | Si | F_VERSION-REG | 14 | 15 | Version = 08
+                cf.plainTextFormat("11", "Num", 2) + // Version del tipo de registro | Numérico | 2 | Si | F_VERSION-REG | 14 | 15 | Version = 11
                 cf.plainTextFormat("1", "Num", 3) + // Compañía | Numérico | 3 | Si | F_CIA | 16 | 18 | Valida en maestro, código de la compañía a la cual pertenece la informacion del registro
                 cf.plainTextFormat(request.idCentroOperacion, "Alfa", 3) + // Centro de operación | Alfanumérico | 3 | Si | f421_id_co  | 19 | 21 | Valida en maestro, código de centro de operación del documento
                 cf.plainTextFormat("OCM", "Alfa", 3) + // Tipo de documento  | Alfanumérico | 3 | Si | f421_id_tipo_docto | 22 | 24 | Valida en maestro, código de tipo de documento
@@ -150,6 +162,21 @@ namespace Commands
                 cf.plainTextFormat(" ", "Alfa", 20) + // Extension 1 | Alfanumérico | 20 | Dep | f851_id_ext1_detalle_item_op | 2743 | 2762 | Es obligatorio si el ítem maneja extensión 1, y numero de documento de  orden de producción existe
                 cf.plainTextFormat(" ", "Alfa", 20) + // Extension 2 | Alfanumérico | 20 | Dep | f851_id_ext2_detalle_item_op | 2763 | 2782 | Es obligatorio si el ítem maneja extensión 2, y numero de documento de orden de producción  existe
                 cf.plainTextFormat("", "Num", 10) + // Número de operación | Numérico | 10 | Dep | f865_numero_operacion | 2783 | 2792 | Valida en maestro, número de la operación, y es obligatorio, si existe numero de documento de orden de producción.
+				cf.plainTextFormat(" ", "Alfa", 3) + // c0820_id_tipo_docto Tipo de documento OT   Alfanumérico Es obligatorio si es un documento de OT Dep 2793    3   2795
+                cf.plainTextFormat(" ", "Num", 8) + // c0820_consec_docto Consecutivo de documento  OT Numérico    Numero de documento, es obligatorio si es documento OT  Dep 2796    8   2803
+                cf.plainTextFormat(" ", "Num", 7) + // c0821_id_equipo Código de equipo    Numérico Código de equipo, es obligatorio si es un documento de OT - Es excluyente con la localidad.  Debe ir '0000000' si no es requerido.	Dep 2804    7   2810
+                cf.plainTextFormat(" ", "Alfa", 60) + // c0811_id Código de localidad Alfanumérico Código de localidad, es obligatorio si es un documento de OT - Es excluyente con el equpo.	Dep 2811    60  2870
+                cf.plainTextFormat(" ", "Alfa", 20) + // c0808_id Código de actividad preventiva Alfanumérico    Código de actividad Preventivo, es obligator se es documento OT - Es excluyente con la descripción de trabajo no rutinario.	Dep 2871    120 2990
+                cf.plainTextFormat(" ", "Alfa", 60) + // c0819_descripcion_trabajo Descripción de trabajo  Alfanumérico Descripción de trabajo no rutinario, si es documento de OT -Es excluyente con la actividad preventiva.Dep 2991    60  3050
+                cf.plainTextFormat(" ", "Alfa", 8) + // c0830_fecha_garantia Fecha de garantia   Alfanumérico Fecha de garantia, si es documento de OT -Formato debe ser AAAAMMDD No  3051    8   3058
+                cf.plainTextFormat(" ", "Alfa", 30) + // f4923_id_actividad Código de la actividad Alfanumérico    Código de la actividad, es obligatorio si proyecto es de gestión de proyectos..Dep 3059    30  3088
+                cf.plainTextFormat(" ", "Num", 20) + // f421_precio_unitario_min Precio minimo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3089    20  3108
+                cf.plainTextFormat(" ", "Num", 20) + // f421_precio_unitario_max Precio maximo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3109    20  3128
+                cf.plainTextFormat(" ", "Alfa", 3) + // f421_co_req CO Requisición Alfanumérico    Valida en maestro, código de centro de operación del documento, solo aplica si se va a hacer una solicitud desde orden de compra.Dep 3129    3   3131
+                cf.plainTextFormat(" ", "Alfa", 3) + // f421_tipo_docto_req Tipo documento requisición  Alfanumérico Valida en maestro, código de tipo de documento, solo aplica si se va a hacer una solicitud desde orden de compra.	Dep 3132    3   3134
+                cf.plainTextFormat(" ", "Num", 8) + // f421_consec_docto_req Consecutivo requisición Numérico    Numero de documento, solo aplica si se va a hacer una solicitud desde orden de compra.Dep 3135    8   3142
+                cf.plainTextFormat(" ", "Num", 10) + // f421_codigo_interno_req Código interno del movimiento requisición   Numérico Código interno del movimiento de la requisición, solo aplica si se va a hacer una solicitud desde orden de compra.	Dep 3143    10  3152
+                cf.plainTextFormat("1", "Num", 1) + // f421_ind_descuento Indicador para calculo de descuentos, para saber si se calcula con base a las cotizaciones Numérico    0 toma la informacion del plano; 1 toma los descuentos de la cotizacion; 0 = No, 1 = Si    Si  3153    1   3153
                 "</Linea>";
             }
 
