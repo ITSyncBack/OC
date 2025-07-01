@@ -1,26 +1,20 @@
-﻿using Azure;
-using Common;
+﻿using Common;
 using MediatR;
-using Microsoft.SqlServer.Server;
-using Microsoft.VisualBasic;
 using Pd_Ws_Unoee;
-using System.Diagnostics.Contracts;
-using System.Drawing;
-using System.Numerics;
-using System.Reflection;
 using System.Xml.Linq;
 using Ts_Ws_Unoee;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Commands
 {
     public class CreateOc : IRequestHandler<Rq_Create_Oc, Unit>
     {
         private readonly object _soapClient;
+        private readonly ILogger _logger;
 
-        public CreateOc(object soapClient)
+        public CreateOc(object soapClient, ILogger<CreateOc> logger)
         {
             _soapClient = soapClient;
+            _logger = logger;
         }
 
         public async Task<Unit> Handle(Rq_Create_Oc request, CancellationToken cancellationToken)
@@ -31,6 +25,8 @@ namespace Commands
 
                 var response = await pdClient.ImportarXMLAsync(importRq);
 
+                _logger.LogInformation(response.ToString());
+
                 return ProcessResponse(response, importRq);
             }
             else if (_soapClient is Ts_WSUNOEESoapClient tsClient)
@@ -38,6 +34,8 @@ namespace Commands
                 var importRq = new Ts_Ws_Unoee.ImportarXMLRequest(GenerateXml(request), 0);
 
                 var response = await tsClient.ImportarXMLAsync(importRq);
+
+                _logger.LogInformation(response.ToString());
 
                 return ProcessResponse(response, importRq);
             }
@@ -106,8 +104,8 @@ namespace Commands
             cf.plainTextFormat(request.doctoReferencia, "Alfa", 15) + // Documento referencia | Alfanumérico | 15 | No | f420_num_docto_referencia | 716 | 730 |  | Documento referencia
             cf.plainTextFormat(" ", "Alfa", 15) + // Mandato | Alfanumérico | 15 | No | f420_id_mandato | 731 | 745 |  | Valida en maestro, código del mandato, solo para ordenes de compra.
 			cf.plainTextFormat("0", "Num", 1) + // f420_ind_consignacion | Indicador de consignación Numérico | 0 = No, 1 = Si.El valor de este indicador se lleva a la entrada desde OC. | Si | 746 | 1 | 746
-            cf.plainTextFormat(" ", "Alfa", 15) + // f420_id_tercero_solicit | Tercero solicitante | Alfanumérico | Valida en maestro.Es el código de tercero con que se identifica al solicitante.No  747 15  761
-            cf.plainTextFormat(" ", "Alfa", 1) + // f420_ind_importacion | Indicador de importación | Alfanumérico |    0 = No, 1 = Si, Indica que la gestión de compra se hará por el modulo de importaciones.Si  762 1   762
+            cf.plainTextFormat("901148822", "Alfa", 15) + // f420_id_tercero_solicit | Tercero solicitante | Alfanumérico | Valida en maestro.Es el código de tercero con que se identifica al solicitante.No  747 15  761
+            cf.plainTextFormat("0", "Alfa", 1) + // f420_ind_importacion | Indicador de importación | Alfanumérico |    0 = No, 1 = Si, Indica que la gestión de compra se hará por el modulo de importaciones.Si  762 1   762
             cf.plainTextFormat(" ", "Alfa", 15) + // f420_id_proyecto Proyecto | Alfanumérico | Valida en maestro, código de proyecto del documento No  763 15  777
             "</Linea>";
 
@@ -166,12 +164,12 @@ namespace Commands
                 cf.plainTextFormat(" ", "Num", 8) + // c0820_consec_docto Consecutivo de documento  OT Numérico    Numero de documento, es obligatorio si es documento OT  Dep 2796    8   2803
                 cf.plainTextFormat(" ", "Num", 7) + // c0821_id_equipo Código de equipo    Numérico Código de equipo, es obligatorio si es un documento de OT - Es excluyente con la localidad.  Debe ir '0000000' si no es requerido.	Dep 2804    7   2810
                 cf.plainTextFormat(" ", "Alfa", 60) + // c0811_id Código de localidad Alfanumérico Código de localidad, es obligatorio si es un documento de OT - Es excluyente con el equpo.	Dep 2811    60  2870
-                cf.plainTextFormat(" ", "Alfa", 20) + // c0808_id Código de actividad preventiva Alfanumérico    Código de actividad Preventivo, es obligator se es documento OT - Es excluyente con la descripción de trabajo no rutinario.	Dep 2871    120 2990
+                cf.plainTextFormat(" ", "Alfa", 120) + // c0808_id Código de actividad preventiva Alfanumérico    Código de actividad Preventivo, es obligator se es documento OT - Es excluyente con la descripción de trabajo no rutinario.	Dep 2871    120 2990
                 cf.plainTextFormat(" ", "Alfa", 60) + // c0819_descripcion_trabajo Descripción de trabajo  Alfanumérico Descripción de trabajo no rutinario, si es documento de OT -Es excluyente con la actividad preventiva.Dep 2991    60  3050
                 cf.plainTextFormat(" ", "Alfa", 8) + // c0830_fecha_garantia Fecha de garantia   Alfanumérico Fecha de garantia, si es documento de OT -Formato debe ser AAAAMMDD No  3051    8   3058
                 cf.plainTextFormat(" ", "Alfa", 30) + // f4923_id_actividad Código de la actividad Alfanumérico    Código de la actividad, es obligatorio si proyecto es de gestión de proyectos..Dep 3059    30  3088
-                cf.plainTextFormat(" ", "Num", 20) + // f421_precio_unitario_min Precio minimo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3089    20  3108
-                cf.plainTextFormat(" ", "Num", 20) + // f421_precio_unitario_max Precio maximo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3109    20  3128
+                cf.plainTextFormat("", "Float", 15, 4) + // f421_precio_unitario_min Precio minimo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3089    20  3108
+                cf.plainTextFormat("", "Float", 15, 4) + // f421_precio_unitario_max Precio maximo por linea de contrato Numérico    Debe ser mayor a 000000000000000,0000 si la clase de contrato captura precio minimo y maximo. El formato debe ser(15 enteros + punto + 4 decimales). El número de decimales se deben reportar teniendo en cuenta el número de decimales configurados en la moneda(decimales unidades).Aplica para clase 431 para versión 9 de documento.	Dep 3109    20  3128
                 cf.plainTextFormat(" ", "Alfa", 3) + // f421_co_req CO Requisición Alfanumérico    Valida en maestro, código de centro de operación del documento, solo aplica si se va a hacer una solicitud desde orden de compra.Dep 3129    3   3131
                 cf.plainTextFormat(" ", "Alfa", 3) + // f421_tipo_docto_req Tipo documento requisición  Alfanumérico Valida en maestro, código de tipo de documento, solo aplica si se va a hacer una solicitud desde orden de compra.	Dep 3132    3   3134
                 cf.plainTextFormat(" ", "Num", 8) + // f421_consec_docto_req Consecutivo requisición Numérico    Numero de documento, solo aplica si se va a hacer una solicitud desde orden de compra.Dep 3135    8   3142

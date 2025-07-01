@@ -39,6 +39,8 @@ namespace Querys
                     default: throw new InvalidOperationException("Calcular por no soportado.");
                 }
 
+				string estadosItem = request.mostrarItemsInactivos == false ? estadosItem = "1," : "0,1,";
+
                 xmlQuery +=
                 $@"<Usuario>{Environment.GetEnvironmentVariable("user")}</Usuario>
                 <Clave>{Environment.GetEnvironmentVariable("password")}</Clave>
@@ -47,6 +49,7 @@ namespace Querys
                     <idsUnidadesNegocio>{request.idsUnidadesNegocio}</idsUnidadesNegocio>
                     <idCriterioProveedor>{request.idCriterioProveedor}</idCriterioProveedor>
                     <idCriterioLinea>{request.idCriterioLinea}</idCriterioLinea>
+                    <estadosItem>{estadosItem}</estadosItem>
                 </Parametros>
                 </Consulta>";
 
@@ -70,6 +73,8 @@ namespace Querys
             else {
 
 				string sqlQuery = "";
+
+				string filtroItemsInactivos = request.mostrarItemsInactivos == true ? "" : "v121_estado_item_ext = 1 and ";
 
                 switch (request.calcularPor)
                 {
@@ -254,6 +259,7 @@ namespace Querys
 						from 
 							dbo.v121 as Item
 						where
+							{filtroItemsInactivos}
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioProveedor where CriterioProveedor.f125_id_plan = '40' and CriterioProveedor.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioProveedor AND
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioLinea where CriterioLinea.f125_id_plan = '10' and CriterioLinea.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioLinea AND
 							Item.v121_id_cia = 1
@@ -440,6 +446,7 @@ namespace Querys
 						from 
 							dbo.v121 as Item
 						where
+							{filtroItemsInactivos}
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioProveedor where CriterioProveedor.f125_id_plan = '40' and CriterioProveedor.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioProveedor AND
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioLinea where CriterioLinea.f125_id_plan = '10' and CriterioLinea.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioLinea AND
 							Item.v121_id_cia = 1
@@ -615,6 +622,7 @@ namespace Querys
 						from 
 							dbo.v121 as Item
 						where
+							{filtroItemsInactivos}
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioProveedor where CriterioProveedor.f125_id_plan = '40' and CriterioProveedor.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioProveedor AND
 							(select f125_id_criterio_mayor from dbo.t125_mc_items_criterios CriterioLinea where CriterioLinea.f125_id_plan = '10' and CriterioLinea.f125_rowid_item = Item.v121_rowid_item ) = @idCriterioLinea AND
 							Item.v121_id_cia = 1
@@ -671,6 +679,7 @@ namespace Querys
         public string idCriterioLinea { get; set; }
         public string calcularPor { get; set; }
         public string? tipoConsulta { get; set; }
+        public bool? mostrarItemsInactivos { get; set; }
     }
 
     public class Linea_Plan_Compras {

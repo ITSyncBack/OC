@@ -1,15 +1,30 @@
 using MediatR;
 using Microsoft.Data.SqlClient;
 using Pd_Ws_Unoee;
+using Serilog;
 using Ts_Ws_Unoee;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 
 builder.Services.AddControllers();
 builder.Services.AddTransient<SqlConnection>((sp) => new SqlConnection(builder.Configuration.GetConnectionString("DBConnection")));
 builder.Services.AddCors(options => { options.AddPolicy("CorsPolicy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()); });
+
+try
+{
+    Log.Logger = new LoggerConfiguration()
+        .Enrich.FromLogContext()
+        .WriteTo.Seq("http://localhost:5341")
+        .CreateLogger();
+}
+catch (Exception ex)
+{
+    File.AppendAllText("log_startup_fallback.txt", ex.ToString());
+}
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
